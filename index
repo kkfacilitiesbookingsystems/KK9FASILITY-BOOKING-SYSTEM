@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KK9 Facility Booking</title>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #f5f7fa;
+      color: #1f2937;
+    }
+    .container { width: 100%; max-width: 1000px; margin: 0 auto; padding: 32px 20px 60px; }
+    .header { margin-bottom: 30px; }
+    .header h1 { margin: 0 0 8px; font-size: 32px; font-weight: 700; color: #111827; }
+    .header p { margin: 0; color: #6b7280; font-size: 15px; }
+
+    .support-banner {
+      background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 16px;
+      border-radius: 10px; margin-bottom: 20px; color: #1e40af; font-size: 14px; font-weight: 500;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .facility-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+    .facility-card {
+      background: white; border: 1px solid #e5e7eb; border-radius: 14px; padding: 22px;
+      min-height: 150px; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease;
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .facility-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.07); }
+    .facility-card.inactive { cursor: not-allowed; background: #f8fafc; opacity: .78; }
+    .facility-name { font-size: 18px; font-weight: 650; color: #111827; }
+    .facility-hours { margin-top: 12px; font-size: 14px; color: #6b7280; }
+    .facility-status { margin-top: 16px; font-size: 12px; font-weight: 700; }
+    .facility-status.available { color: #15803d; }
+    .facility-status.unavailable { color: #b91c1c; }
+
+    .back-button { border: none; background: transparent; padding: 0; margin-bottom: 20px; color: #2563eb; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .back-button:hover { text-decoration: underline; }
+
+    .facility-header, .booking-panel { background: white; border: 1px solid #e5e7eb; border-radius: 14px; padding: 24px; }
+    .facility-header { margin-bottom: 18px; }
+    .facility-header h2 { margin: 0 0 8px; font-size: 26px; color: #111827; }
+    .facility-header p { margin: 0; color: #6b7280; font-size: 14px; }
+
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #374151; }
+    input, select, textarea { width: 100%; border: 1px solid #d1d5db; border-radius: 9px; padding: 10px 12px; background: white; color: #111827; font-size: 15px; outline: none; }
+    input, select { height: 46px; }
+    textarea { resize: vertical; min-height: 80px; }
+
+    .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .booking-summary { margin: 4px 0 20px; padding: 14px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; color: #1e40af; font-size: 14px; }
+
+    .day-availability-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+    .day-title { font-weight: 650; color: #374151; margin-bottom: 10px; font-size: 14px; }
+    .availability-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 6px; }
+    .slot { border: 1px solid #d1d5db; background: white; border-radius: 6px; padding: 8px 4px; text-align: center; font-size: 12px; cursor: pointer; }
+    .slot:hover { border-color: #2563eb; background: #eff6ff; }
+    .slot.selected { border-color: #2563eb; background: #2563eb; color: white; font-weight: 600; }
+    
+
+.slot.booked,
+.slot.booked:disabled {
+  background-color: #9ca3af !important;
+  color: #ffffff !important;
+  border: 2px solid #6b7280 !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+.slot.pending,
+.slot.pending:disabled {
+  background-color: #fed7aa !important;
+  color: #9a3412 !important;
+  border: 2px solid #ea580c !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+    .continue-button, .submit-button { width: 100%; min-height: 48px; margin-top: 18px; border: none; border-radius: 9px; background: #111827; color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .continue-button:disabled, .submit-button:disabled { background: #d1d5db; cursor: not-allowed; }
+    .message { padding: 18px; border-radius: 10px; font-size: 14px; margin-bottom: 18px; }
+    .message.error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+    .message.loading { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>KK9 Facility Booking</h1>
+      <p>Select a facility to view its availability and make a booking directly.</p>
+    </header>
+
+    <div class="support-banner">
+      💡 Need help or manual bookings? Contact <strong>JTK ..... (ALI....)</strong> at <strong>012345678</strong>.
+    </div>
+
+    <div id="maintenanceBanner" class="message error hidden" style="background:#fff7ed; border-color:#fed7aa; color:#9a3412;"></div>
+    <div id="errorMessage" class="message error hidden" role="alert"></div>
+
+    <!-- FACILITY SELECTION -->
+    <section id="facilityPage" class="page active">
+      <div id="facilityLoading" class="message loading">Loading facilities...</div>
+      <div id="facilityGrid" class="facility-grid"></div>
+    </section>
+
+    <!-- DATE AND TIME SELECTION -->
+    <section id="bookingPage" class="page">
+      <button type="button" class="back-button" onclick="goBackToFacilities()">← Back to facilities</button>
+      <div class="facility-header">
+        <h2 id="selectedFacilityName">Facility</h2>
+        <p id="selectedFacilityHours">Operating hours</p>
+      </div>
+
+      <div class="booking-panel">
+        <div class="date-row">
+          <div class="form-group">
+            <label for="startDate">Start date</label>
+            <input type="date" id="startDate" required>
+          </div>
+          <div class="form-group">
+            <label for="endDate">End date</label>
+            <input type="date" id="endDate" required>
+          </div>
+        </div>
+
+        <div id="bookingSummary" class="booking-summary hidden"></div>
+
+        <div class="availability-section">
+          <h3 class="availability-title">Select Time Slots per Day</h3>
+          <p style="font-size:13px;color:#6b7280;margin-bottom:14px;">Click time boxes for each day. Non-contiguous selections (e.g. 10-11 and 13-14) will be registered as separate time entries under the same booking reference.</p>
+          <div id="availabilityContainer"></div>
+        </div>
+
+        <button type="button" id="continueButton" class="continue-button" onclick="showDetailsForm()" disabled>Continue to booking details</button>
+      </div>
+    </section>
+
+    <!-- BOOKING DETAILS -->
+    <section id="detailsPage" class="page">
+      <button type="button" class="back-button" onclick="goBackToBooking()">← Back to date &amp; time</button>
+      <div class="facility-header">
+        <h2>Enter Booking Details</h2>
+        <p id="summaryReviewText">Review your slots and provide your contact information.</p>
+      </div>
+
+      <div class="booking-panel">
+        <form id="bookingForm">
+          <div class="form-group"><label for="bookerName">Booker Name</label><input type="text" id="bookerName" required maxlength="120" placeholder="Full Name"></div>
+          <div class="form-group"><label for="matricNumber">Matric Number</label><input type="text" id="matricNumber" required maxlength="40" placeholder="e.g. 24001958"></div>
+          
+<div class="form-group">
+  <label for="email">Email (UM Student Email preferred)</label>
+  <input
+    type="email"
+    id="email"
+    name="email"
+    required
+    maxlength="254"
+    placeholder="username@siswa.um.edu.my"
+    autocomplete="email"
+    aria-describedby="emailError"
+  >
+  <p id="emailError" style="color:#b91c1c;font-size:13px;margin:6px 0 0;display:none;">
+    Please enter a valid email address, for example username@siswa.um.edu.my.
+  </p>
+</div>
+
+          <div class="form-group"><label for="phone">Phone Number</label><input type="tel" id="phone" required maxlength="30" placeholder="0104563287"></div>
+          <div class="form-group"><label for="organisation">Organisation / Bureau</label><input type="text" id="organisation" required maxlength="120" placeholder="e.g. JTK, KEP"></div>
+          <div class="form-group"><label for="purpose">Purpose / Usage</label><textarea id="purpose" required maxlength="2000" placeholder="Describe what the facility will be used for..."></textarea></div>
+
+          <div id="submissionMessage" class="message hidden" role="status"></div>
+          <button type="submit" id="submitButton" class="submit-button">Submit Booking Request</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- SUCCESS -->
+    <section id="successPage" class="page">
+      <div class="booking-panel" style="text-align:left;max-width:600px;margin:0 auto;padding:30px;">
+        <h2 style="color:#166534;margin-bottom:8px;text-align:center;">Booking Request Submitted!</h2>
+        <p style="color:#4b5563;font-size:14px;text-align:center;margin-bottom:20px;">Your booking is currently marked as <strong>PENDING</strong> and confirmation emails have been dispatched.</p>
+        
+        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;font-size:14px;margin-bottom:20px;">
+          <p style="margin:6px 0;"><strong>Booking ID:</strong> <span id="confBookingId" style="color:#2563eb;font-weight:600;"></span></p>
+          <p style="margin:6px 0;"><strong>Facility:</strong> <span id="confFacility"></span></p>
+          <p style="margin:6px 0;"><strong>Booker Name:</strong> <span id="confName"></span></p>
+          <p style="margin:6px 0;"><strong>Email:</strong> <span id="confEmail"></span></p>
+          <p style="margin:6px 0;"><strong>Organisation:</strong> <span id="confOrg"></span></p>
+          <p style="margin:6px 0;"><strong>Purpose:</strong> <span id="confPurpose"></span></p>
+          <div style="margin-top:12px;">
+            <strong>Requested Slots:</strong>
+            <ul id="confSlotsList" style="margin:6px 0 0 20px;padding:0;color:#374151;"></ul>
+          </div>
+        </div>
+
+        <button type="button" class="continue-button" style="max-width:240px;margin:0 auto;" onclick="location.reload()">Make Another Booking</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const PUBLIC_SHEET_ID = "1dW5ZoThMFzC4LJ_RJ52Ro9cYqLR-tQPIIYbUb8db4gA";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwiHEH-1hsAR2XBJjvSLQWeovTs9qPgp1QNFI89SRwqm7G0kIfwhUUHIAOoSMnSNsvy/exec";
+    const SLOT_INTERVAL = 30;
+
+    let facilities = [];
+    let selectedFacility = null;
+    let selectedStartDate = "";
+    let selectedEndDate = "";
+    let currentBookingsByDate = {};
+    let selectedSlotsByDate = {};
+    let maintenanceMode = false;
+
+    const facilityPage = document.getElementById("facilityPage");
+    const bookingPage = document.getElementById("bookingPage");
+    const detailsPage = document.getElementById("detailsPage");
+    const successPage = document.getElementById("successPage");
+
+    const facilityGrid = document.getElementById("facilityGrid");
+    const facilityLoading = document.getElementById("facilityLoading");
+    const selectedFacilityName = document.getElementById("selectedFacilityName");
+    const selectedFacilityHours = document.getElementById("selectedFacilityHours");
+
+    const startDate = document.getElementById("startDate");
+    const endDate = document.getElementById("endDate");
+    const availabilityContainer = document.getElementById("availabilityContainer");
+    const bookingSummary = document.getElementById("bookingSummary");
+    const continueButton = document.getElementById("continueButton");
+    const errorMessage = document.getElementById("errorMessage");
+    const maintenanceBanner = document.getElementById("maintenanceBanner");
+    const summaryReviewText = document.getElementById("summaryReviewText");
+    const bookingForm = document.getElementById("bookingForm");
+    const submitButton = document.getElementById("submitButton");
+
+    document.addEventListener("DOMContentLoaded", initializeApp);
+    bookingForm.addEventListener("submit", submitBooking);
+    
+const emailInput = document.getElementById("email");
+const emailError = document.getElementById("emailError");
+
+function validateEmailFormat() {
+  const email = emailInput.value.trim();
+
+  // Let the browser handle an empty required field.
+  if (email === "") {
+    emailError.style.display = "none";
+    emailInput.setCustomValidity("");
+    return false;
+  }
+
+  // Basic format check, including a domain with a dot.
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isValid = emailPattern.test(email);
+
+  emailInput.setCustomValidity(
+    isValid ? "" : "Please enter a valid email address."
+  );
+
+  emailError.style.display = isValid ? "none" : "block";
+
+  return isValid;
+}
+
+emailInput.addEventListener("input", validateEmailFormat);
+emailInput.addEventListener("blur", validateEmailFormat);
+
+
+    async function fetchGviz(sheetName) {
+      const url = "https://docs.google.com/spreadsheets/d/" + PUBLIC_SHEET_ID + "/gviz/tq?sheet=" + encodeURIComponent(sheetName) + "&tqx=out:json";
+      const response = await fetch(url, { method: "GET", cache: "no-store" });
+      const text = await response.text();
+      if (!response.ok) throw new Error("Google Sheets HTTP " + response.status);
+      const firstParen = text.indexOf("(");
+      const lastParen = text.lastIndexOf(")");
+      return JSON.parse(text.substring(firstParen + 1, lastParen));
+    }
+
+    async function initializeApp() {
+      await checkMaintenanceMode();
+      await loadFacilities();
+    }
+
+    async function checkMaintenanceMode() {
+      try {
+        const data = await fetchGviz("Settings");
+        if (data && data.table && data.table.rows) {
+          data.table.rows.forEach(row => {
+            const cells = row.c || [];
+            const key = String(getCellValue(cells[0])).trim().toLowerCase();
+            const val = String(getCellValue(cells[1])).trim();
+            if (key === "maintenance_mode") {
+              maintenanceMode = val.toLowerCase() === "true" || val === "1" || val.toLowerCase() === "yes";
+            } else if (key === "maintenance_notice" && val) {
+              maintenanceBanner.textContent = val;
+            }
+          });
+        }
+        if (maintenanceMode) {
+          if (!maintenanceBanner.textContent.trim()) {
+            maintenanceBanner.textContent = "The booking system is currently under maintenance. Please contact JTKD Teknikal (Fateh) at 0104563287 directly for bookings.";
+          }
+          maintenanceBanner.classList.remove("hidden");
+        }
+      } catch (err) {
+        console.error("Maintenance check failed:", err);
+      }
+    }
+
+    async function loadFacilities() {
+      errorMessage.classList.add("hidden");
+      facilityLoading.classList.remove("hidden");
+      try {
+        const data = await fetchGviz("Facilities");
+        facilities = parseFacilities(data);
+        renderFacilities();
+      } catch (error) {
+        errorMessage.textContent = "Failed to load facilities. " + error.message;
+        errorMessage.classList.remove("hidden");
+      } finally {
+        facilityLoading.classList.add("hidden");
+      }
+    }
+
+    function getCellValue(cell) {
+      if (!cell) return "";
+      return cell.f !== undefined && cell.f !== null ? cell.f : (cell.v !== undefined && cell.v !== null ? cell.v : "");
+    }
+
+    function parseFacilities(data) {
+      if (!data || !data.table || !Array.isArray(data.table.rows)) return [];
+      return data.table.rows.map(row => {
+        const cells = row.c || [];
+        const facility = String(getCellValue(cells[0])).trim();
+        const openingTime = normalizeSheetTime(cells[1]);
+        const closingTime = normalizeSheetTime(cells[2]);
+        const status = String(getCellValue(cells[3]) || "ACTIVE").trim().toUpperCase();
+        if (!facility || facility.toLowerCase() === "facility") return null;
+        return { facility, openingTime, closingTime, status: status === "ACTIVE" ? "ACTIVE" : "INACTIVE" };
+      }).filter(Boolean);
+    }
+
+    function renderFacilities() {
+      facilityGrid.innerHTML = "";
+      facilities.forEach(facility => {
+        const inactive = facility.status !== "ACTIVE" || maintenanceMode;
+        const card = document.createElement("div");
+        card.className = "facility-card" + (inactive ? " inactive" : "");
+        if (!inactive) card.addEventListener("click", () => openFacility(facility));
+
+        const name = document.createElement("div");
+        name.className = "facility-name";
+        name.textContent = facility.facility;
+
+        const hours = document.createElement("div");
+        hours.className = "facility-hours";
+        hours.textContent = facility.openingTime && facility.closingTime ? "Open " + facility.openingTime + " – " + facility.closingTime : "";
+
+        const status = document.createElement("div");
+        status.className = "facility-status " + (inactive ? "unavailable" : "available");
+        status.textContent = maintenanceMode ? "MAINTENANCE MODE" : (inactive ? "UNAVAILABLE" : "AVAILABLE");
+
+        card.append(name, hours, status);
+        facilityGrid.appendChild(card);
+      });
+    }
+
+    function showPage(pageToShow) {
+      [facilityPage, bookingPage, detailsPage, successPage].forEach(p => p.classList.toggle("active", p === pageToShow));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function openFacility(facility) {
+      if (maintenanceMode || facility.status !== "ACTIVE") return;
+      selectedFacility = facility;
+      selectedFacilityName.textContent = facility.facility;
+      selectedFacilityHours.textContent = "Operating hours: " + facility.openingTime + " – " + facility.closingTime;
+      resetBookingState();
+      startDate.min = formatDateObject(new Date());
+      endDate.min = startDate.min;
+      showPage(bookingPage);
+    }
+
+    function goBackToFacilities() { showPage(facilityPage); }
+    function goBackToBooking() { showPage(bookingPage); }
+
+    function resetBookingState() {
+      selectedStartDate = ""; selectedEndDate = "";
+      currentBookingsByDate = {}; selectedSlotsByDate = {};
+      startDate.value = ""; endDate.value = "";
+      availabilityContainer.innerHTML = "";
+      bookingSummary.className = "booking-summary hidden";
+      continueButton.disabled = true;
+    }
+
+    startDate.addEventListener("change", async () => {
+      selectedStartDate = startDate.value;
+      if (!selectedStartDate) return;
+
+      endDate.value = selectedStartDate;
+      selectedEndDate = selectedStartDate;
+      endDate.min = selectedStartDate;
+
+      selectedSlotsByDate = {};
+      updateBookingSummary();
+      await loadAvailability();
+    });
+
+    endDate.addEventListener("change", async () => {
+      selectedEndDate = endDate.value;
+      selectedSlotsByDate = {};
+      if (!selectedStartDate || !selectedEndDate) return;
+      if (selectedEndDate < selectedStartDate) {
+        alert("End date cannot be before start date.");
+        endDate.value = selectedStartDate; 
+        selectedEndDate = selectedStartDate; 
+        return;
+      }
+      updateBookingSummary();
+      await loadAvailability();
+    });
+
+    
+async function loadAvailability() {
+  availabilityContainer.innerHTML =
+    "<div class='message loading'>Loading availability...</div>";
+
+  try {
+    const data = await fetchGviz("Bookings");
+
+    console.log("PUBLIC BOOKINGS DATA:", data);
+
+    currentBookingsByDate = parseBookingsForRange(
+      data,
+      selectedFacility.facility,
+      selectedStartDate,
+      selectedEndDate
+    );
+
+    console.log("PARSED BOOKINGS:", currentBookingsByDate);
+    console.log("SELECTED FACILITY:", selectedFacility.facility);
+    console.log("SELECTED DATE:", selectedStartDate);
+
+    renderAvailabilityMatrix();
+
+  } catch (err) {
+    console.error("Availability loading failed:", err);
+
+    availabilityContainer.innerHTML =
+      "<div class='message error'>Failed to load availability. " +
+      err.message + "</div>";
+  }
+}
+
+
+    
+function parseBookingsForRange(data, facilityName, startStr, endStr) {
+  const map = {};
+
+  getDatesBetween(
+    parseDateOnly(startStr),
+    parseDateOnly(endStr)
+  ).forEach(d => {
+    map[formatDateObject(d)] = [];
+  });
+
+  if (!data || !data.table || !Array.isArray(data.table.rows)) {
+    console.error("Invalid booking data:", data);
+    return map;
+  }
+
+  data.table.rows.forEach(row => {
+    const cells = row.c || [];
+
+    // Public sheet: A Facility, B Date, C Start, D End, E Status
+    const facility = String(getCellValue(cells[0])).trim();
+    const date = parseSheetDate(cells[1]);
+    const bStart = normalizeBookingTime(cells[2]);
+    const bEnd = normalizeBookingTime(cells[3]);
+    const status = String(getCellValue(cells[4]))
+      .trim()
+      .toUpperCase();
+
+    if (facility.toLowerCase() !== facilityName.trim().toLowerCase()) return;
+    if (status !== "PENDING" && status !== "APPROVED") return;
+    if (!date || !bStart || !bEnd) return;
+
+    const dateKey = formatDateObject(date);
+
+    if (map[dateKey]) {
+      map[dateKey].push({
+        start: bStart,
+        end: bEnd,
+        status: status
+      });
+    }
+  });
+
+  console.log("Bookings loaded:", map);
+  return map;
+}
+
+function normalizeBookingTime(cell) {
+  if (!cell) return "";
+
+  const raw = cell.v == null ? "" : String(cell.v).trim();
+  const formatted = cell.f == null ? "" : String(cell.f).trim();
+
+  // Handle Google Sheets time values like Date(1899,11,30,10,0,0)
+  const dateMatch = raw.match(
+    /^Date\(\d+,\d+,\d+(?:,(\d+),(\d+),(\d+))?\)$/
+  );
+
+  if (dateMatch && dateMatch[1] !== undefined) {
+    return String(Number(dateMatch[1])).padStart(2, "0") +
+      ":" + String(Number(dateMatch[2])).padStart(2, "0");
+  }
+
+  const value = formatted || raw;
+
+  // Handle 10:00 AM and 10:00 PM
+  const twelveHour = value.match(
+    /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i
+  );
+
+  if (twelveHour) {
+    let hours = Number(twelveHour[1]) % 12;
+    if (twelveHour[3].toUpperCase() === "PM") hours += 12;
+
+    return String(hours).padStart(2, "0") +
+      ":" + twelveHour[2];
+  }
+
+  // Handle 10:00 and 10:00:00
+  const twentyFourHour = value.match(
+    /^(\d{1,2}):(\d{2})(?::\d{2})?$/
+  );
+
+  if (twentyFourHour) {
+    return String(Number(twentyFourHour[1])).padStart(2, "0") +
+      ":" + twentyFourHour[2];
+  }
+
+  return "";
+}
+
+    function renderAvailabilityMatrix() {
+      availabilityContainer.innerHTML = "";
+      const openMin = parseTimeToMinutes(selectedFacility.openingTime);
+      const closeMin = parseTimeToMinutes(selectedFacility.closingTime);
+      const dates = getDatesBetween(parseDateOnly(selectedStartDate), parseDateOnly(selectedEndDate));
+
+      dates.forEach(dateObj => {
+        const dateKey = formatDateObject(dateObj);
+        const bookings = currentBookingsByDate[dateKey] || [];
+
+        const dayBox = document.createElement("div");
+        dayBox.className = "day-availability-box";
+
+        const dayTitle = document.createElement("div");
+        dayTitle.className = "day-title";
+        dayTitle.textContent = formatDateForDisplay(dateObj);
+        dayBox.appendChild(dayTitle);
+
+        const grid = document.createElement("div");
+        grid.className = "availability-grid";
+
+        for (let m = openMin; m + SLOT_INTERVAL <= closeMin; m += SLOT_INTERVAL) {
+          const slotStart = minutesToTimeStr(m);
+          const slotEnd = minutesToTimeStr(m + SLOT_INTERVAL);
+          const slot = document.createElement("button");
+          slot.type = "button";
+          slot.className = "slot";
+          slot.textContent = slotStart;
+
+          let slotStatus = "available";
+          for (const b of bookings) {
+            const bS = parseTimeToMinutes(b.start);
+            const bE = parseTimeToMinutes(b.end);
+            if (bS !== null && bE !== null && m < bE && m + SLOT_INTERVAL > bS) {
+              slotStatus = b.status === "APPROVED" ? "booked" : "pending";
+              break;
+            }
+          }
+
+          if (slotStatus === "booked") {
+            slot.classList.add("booked"); slot.disabled = true;
+          } else if (slotStatus === "pending") {
+            slot.classList.add("pending"); slot.disabled = true;
+          } else {
+            slot.addEventListener("click", () => toggleSlot(dateKey, slotStart, slotEnd, slot));
+          }
+          grid.appendChild(slot);
+        }
+        dayBox.appendChild(grid);
+        availabilityContainer.appendChild(dayBox);
+      });
+    }
+
+    function toggleSlot(dateKey, startStr, endStr, slotElement) {
+      if (!selectedSlotsByDate[dateKey]) selectedSlotsByDate[dateKey] = [];
+      const idx = selectedSlotsByDate[dateKey].findIndex(s => s.start === startStr);
+      if (idx > -1) {
+        selectedSlotsByDate[dateKey].splice(idx, 1);
+        slotElement.classList.remove("selected");
+      } else {
+        selectedSlotsByDate[dateKey].push({ start: startStr, end: endStr });
+        slotElement.classList.add("selected");
+      }
+
+      let active = false;
+      for (const k in selectedSlotsByDate) { 
+        if (selectedSlotsByDate[k] && selectedSlotsByDate[k].length > 0) {
+          active = true;
+          break;
+        }
+      }
+      continueButton.disabled = !active;
+    }
+
+    function showDetailsForm() {
+      summaryReviewText.textContent = "Facility: " + selectedFacility.facility + " | Period: " + selectedStartDate + " to " + selectedEndDate;
+      showPage(detailsPage);
+    }
+
+    async function submitBooking(event) {
+      event.preventDefault();
+      if (!bookingForm.reportValidity()) return;
+
+      submitButton.disabled = true;
+      submitButton.textContent = "Submitting booking...";
+      document.getElementById("submissionMessage").classList.add("hidden");
+
+      const dateSlots = [];
+      for (const dateStr of Object.keys(selectedSlotsByDate)) {
+        const slots = selectedSlotsByDate[dateStr];
+        if (!slots || slots.length === 0) continue;
+
+        slots.sort((a, b) => parseTimeToMinutes(a.start) - parseTimeToMinutes(b.start));
+
+        let currentBlock = { start: slots[0].start, end: slots[0].end };
+        for (let i = 1; i < slots.length; i++) {
+          if (slots[i].start === currentBlock.end) {
+            currentBlock.end = slots[i].end;
+          } else {
+            dateSlots.push({ date: dateStr, startTime: currentBlock.start, endTime: currentBlock.end });
+            currentBlock = { start: slots[i].start, end: slots[i].end };
+          }
+        }
+        dateSlots.push({ date: dateStr, startTime: currentBlock.start, endTime: currentBlock.end });
+      }
+
+      const payload = {
+        action: "submitBooking",
+        dateSlots: dateSlots,
+        facility: selectedFacility.facility,
+        purpose: document.getElementById("purpose").value.trim(),
+        bookerName: document.getElementById("bookerName").value.trim(),
+        matricNumber: document.getElementById("matricNumber").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        organisation: document.getElementById("organisation").value.trim()
+      };
+
+      try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.message || "Failed to submit booking.");
+        }
+
+        document.getElementById("confBookingId").textContent = result.bookingId;
+        document.getElementById("confFacility").textContent = result.facility;
+        document.getElementById("confName").textContent = result.bookerName;
+        document.getElementById("confEmail").textContent = result.email;
+        document.getElementById("confOrg").textContent = result.organisation;
+        document.getElementById("confPurpose").textContent = payload.purpose;
+
+        const slotsList = document.getElementById("confSlotsList");
+        slotsList.innerHTML = "";
+        result.dateSlots.forEach(slot => {
+          const li = document.createElement("li");
+          li.textContent = slot.date + " (" + slot.startTime + " - " + slot.endTime + ")";
+          slotsList.appendChild(li);
+        });
+
+        showPage(successPage);
+      } catch (error) {
+        const subMsg = document.getElementById("submissionMessage");
+        subMsg.textContent = "Submission failed: " + error.message;
+        subMsg.className = "message error";
+        subMsg.classList.remove("hidden");
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = "Submit Booking Request";
+      }
+    }
+
+    function normalizeSheetTime(cell) { return cell && cell.v ? String(cell.v) : ""; }
+    function parseSheetDate(cell) {
+      if (!cell) return null;
+      if (cell.v && String(cell.v).startsWith("Date(")) {
+        const m = cell.v.match(/Date\((\d+),(\d+),(\d+)\)/);
+        if (m) return new Date(Number(m[1]), Number(m[2]), Number(m[3]));
+      }
+      return parseDateOnly(cell.f || cell.v);
+    }
+    function formatDateObject(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+    function parseDateOnly(val) {
+      if (!val) return null;
+      const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+    }
+    function getDatesBetween(start, end) {
+      const dates = []; let cur = new Date(start);
+      while (cur <= end) { dates.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+      return dates;
+    }
+    function parseTimeToMinutes(t) {
+      if (!t) return null;
+      const p = String(t).split(":");
+      return p.length >= 2 ? Number(p[0]) * 60 + Number(p[1]) : null;
+    }
+    function minutesToTimeStr(m) {
+      return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+    }
+    function formatDateForDisplay(d) { return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); }
+    function updateBookingSummary() {
+      bookingSummary.className = "booking-summary";
+      bookingSummary.textContent = "Booking period: " + selectedStartDate + (selectedEndDate ? " to " + selectedEndDate : "");
+    }
+  </script>
+</body>
+</html>
